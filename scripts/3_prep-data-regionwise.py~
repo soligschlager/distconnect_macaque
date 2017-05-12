@@ -1,0 +1,70 @@
+
+import pandas as pd, numpy as np
+
+
+data_dir = '/home/raid3/oligschlager/workspace/tractdist/data'
+
+# data
+df = pd.read_pickle('%s/df_pairwise.pkl' % data_dir)
+areas_annot = pd.read_csv('%s/downloads/M132LH/areas.csv' % data_dir, header=None).values[:,1]
+areas_key = pd.read_csv('%s/downloads/M132LH/key.csv' % data_dir, header=None).values[:,1]
+cort = np.array([n for n, val in enumerate(areas_annot) if val != np.where(areas_key == 'MedialWall')[0]])
+
+
+### dataframe with measure per region
+
+df_regional = pd.DataFrame.from_dict(data = {'area': df.source.unique()})
+
+# mean tract length of incoming projections
+df_regional['mean_tdist_in'] = [(df['FLNin'].loc[df.target == area] 
+                                 * df['DISTANCE (mm)'].loc[df.target == area]).sum() 
+                                for area in df_regional.area.unique()]
+
+# mean tract length of outgoing projections
+df_regional['mean_tdist_out'] = [(df['FLNout'].loc[df.source == area] 
+                                  * df['DISTANCE (mm)'].loc[df.source == area]).sum() 
+                                 for area in df_regional.area.unique()]
+
+# mean geodesic distance to source areas of incoming projections
+df_regional['mean_gdist_in'] = [(df['FLNin'].loc[df.target == area] 
+                                 * df['GDIST (mm)'].loc[df.target == area]).sum() 
+                                for area in df_regional.area.unique()]
+
+# mean geodesic distance to target areas of outgoing projections
+df_regional['mean_gdist_out'] = [(df['FLNout'].loc[df.source == area] 
+                                  * df['GDIST (mm)'].loc[df.source == area]).sum() 
+                                 for area in df_regional.area.unique()]
+# degree of outgoing projections
+df_regional['degree_out'] = [df.NEURONS[df.source == area].sum() for area in df_regional.area.unique()]
+            
+# degree of incoming projections
+df_regional['degree_in'] = [df.NEURONS[df.target == area].sum() for area in df_regional.area.unique()]
+
+
+
+### dataframe with measure per node 
+# for visualization only
+
+df_surf = pd.DataFrame.from_dict(data = {'vertex': range(len(areas_annot))})
+
+
+for measure in ['mean_tdist_in', 'mean_tdist_out',
+                'mean_gdist_in', 'mean_gdist_out',
+                'degree_in', 'degree_out']:
+    
+    data = np.zeros((areas_annot.shape))
+    
+    for node, key in enumerate(areas_annot):
+        area = areas_key[key]
+        try:
+            data[node] = df_regional[measure][df_regional.area == area]
+        except:
+            data[node] = 0
+        
+    df_surf[measure] = data
+
+
+
+### save
+df_regional.to_pickle('%s/df_regionwise.pkl' % data_dir)
+df_surf.to_pickle('%s/df_nodewise.pkl' % data_dir)

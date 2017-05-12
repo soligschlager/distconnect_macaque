@@ -1,0 +1,176 @@
+
+import pandas as pd, numpy as np, nibabel as nib 
+import itertools
+
+data_dir = '/home/raid3/oligschlager/workspace/tractdist/data' 
+
+
+############################## import - FLN ###################################
+
+# creating df for each pair of source/target combination from original data 
+# (multiple source/target cases)
+
+df_raw = pd.read_excel('%s/downloads/PNAS_2013.xls' % data_dir)
+df_raw.SOURCE = df_raw.SOURCE.apply(str)
+df_raw.TARGET = df_raw.TARGET.apply(str)
+
+# df with all possible source-target pairs
+c = np.array(list(itertools.product(df_raw.SOURCE.unique(), df_raw.TARGET.unique()))).T
+df = pd.DataFrame({'SOURCE': c[0], 'TARGET': c[1]})
+
+# if multiple entries for a source-target pair, average
+# if no entry, cell will be nan
+for col in ['FLNe', 'NEURONS', 'DISTANCE (mm)']:
+    df[col] = np.nan
+    for i in range(len(df)):
+        df[col].iloc[i] = df_raw[col].loc[(df_raw.SOURCE == df.SOURCE.iloc[i]) & 
+                                          (df_raw.TARGET == df.TARGET.iloc[i])].mean()
+        
+del df_raw
+
+
+
+########################### import - adding SLN ###############################
+
+df_sln = pd.read_excel('%s/downloads/Neuron_2015_Table.xlsx' % data_dir)
+df_sln.SOURCE = df_sln.SOURCE.apply(str)
+df_sln.TARGET = df_sln.TARGET.apply(str)
+
+# making labels equivalent to that of base df
+# PIR and SUB in df are not listed in df_sln, will be nan
+matches = [('Core', 'CORE'), 
+           ('ENTO', 'ENTORHINAL'), 
+           ('INS', 'INSULA'), 
+           ('PERI','PERIRHINAL'), 
+           ('POLE', 'TEMPORAL-POLE'),
+           ('Pi', 'Parainsula'),]      
+
+for n, pair in enumerate(matches):
+    df_sln.SOURCE[df_sln.SOURCE == matches[n][1]] = matches[n][0]
+
+df = pd.merge(df, df_sln[['SOURCE', 'TARGET', 'SLN']], how='left', on=['SOURCE', 'TARGET'])
+
+del df_sln
+
+
+############################# import - labels #################################
+
+# modifying labelling to match taht of surface labels
+
+area_labels = pd.read_csv('%s/downloads/M132LH/key.csv' % data_dir, header=None).values[:,1]
+
+matches = [('PERI', 'Peri'), ('TEa/ma', 'TEa_m-a'), ('TEa/mp', 'TEa_m-p'),
+           ('ENTO', 'Ento'), ('INS', 'Ins'), ('9/46d', '9_46d'), ('9/46v', '9_46v'),
+           ('Pro.St.', 'Pro.'), ('SII', 'S2'), ('29/30', '29_30'), ('OPRO', 'Opro'),
+           ('SUB', 'Sub'), ('PIR', 'Pir'), ('POLE', 'TEMPORAL-POLE')]
+
+# new columns
+df['source'] = np.nan
+df['target'] = np.nan
+
+for label in area_labels:
+    
+    # if surface label not found in df, find matching df label and assign surface label to new col  
+    if len(df.source.loc[df.SOURCE == label]) == 0:
+        try:
+            df_area_name = [pair[0] for pair in matches if pair[1] == label][0] 
+            df.source.loc[df.SOURCE == df_area_name] = label
+        except:
+            print label # neither found in df nor in matches
+    # if surface label found in df, keep it
+    else:
+        df.source.loc[df.SOURCE == label] = label
+        
+    # same for targets
+    if len(df.target.loc[df.TARGET == label]) == 0:
+        try:
+            df_area_name = [pair[0] for pair in matches if pair[1]==label][0] 
+            df.target.loc[df.TARGET == df_area_name] = label
+        except:
+            ''
+    else:
+        df.target.loc[df.TARGET == label] = label
+
+# retain labelling that matches surface labels        
+df.drop(labels=['SOURCE','TARGET'], axis=1, inplace=True)
+
+
+####################### calculating additional FLNs ###########################
+
+df['FLNin'] = np.nan
+df['FLNout'] = np.nan
+df['FLNglob'] = np.nan
+
+for i in range(len(df)):
+    
+    df['FLNin'].iloc[i] = df.NEURONS.iloc[i] / df.NEURONS.loc[df.target == df.target.iloc[i]].sum()
+    
+    df['FLNout'].iloc[i] = df.NEURONS.iloc[i] / df.NEURONS.loc[df.source == df.source.iloc[i]].sum()
+    
+    df['FLNglob'].iloc[i] = df.NEURONS.iloc[i] / df.NEURONS.sum()
+
+
+
+################## geodesic distance between regions ##########################
+
+# macaque surface
+
+surf = nib.freesurfer.read_geometry('%s/downloads/M132LH/Core-Nets_M132LH.surf' % data_dir)
+coords = nib.freesurfer.read_geometry('%s/downloads/M132LH/Core-Nets_M132LH.surf' % data_dir)[0]
+faces = nib.freesurfer.read_geometry('%s/downloads/M132LH/Core-Nets_M132LH.surf' % data_dir)[1]
+sulc = nib.freesurfer.read_morph_data('%s/downloads/M132LH/Core-Nets_M132LH.sulc' % data_dir)
+
+areas_annot = pd.read_csv('%s/downloads/M132LH/areas.csv' % data_dir, header=None).values[:,1]
+areas_key = pd.read_csv('%s/downloads/M132LH/key.csv' % data_dir, header=None).values[:,1]
+
+cort = np.array([n for n, val in enumerate(areas_annot) if val != np.where(areas_key == 'MedialWall')[0]])
+
+# coords and faces indexed by cortex only
+vertices = np.load('%s/vertices_in_cort.npy' % data_dir)
+triangles = np.load('%s/triangles_in_cort.npy' % data_dir)
+
+gdist_mat = np.load('%s/gdist_node-by-node.npy' % data_dir)
+
+
+# geometric centroid per region
+
+centroids = list()
+
+for area in df.source.unique():
+
+    area_idx = np.where(areas_key == area)[0][0]
+    area_nodes = np.where(areas_annot == area_idx)[0]
+    area_dists = gdist_mat[np.ix_(area_nodes, area_nodes)]
+    
+    # exclude nodes with inf gdist from centroid calculation
+    if True in np.isinf(area_dists):
+        keep = np.unique(np.sort(np.where(~np.isinf(area_dists))[0])) 
+        area_dists = area_dists[np.ix_(keep, keep)]
+        area_nodes = area_nodes[keep]
+       
+    area_dists = area_dists.astype(np.float64) # mean doesnt work for float16                      
+    centroids.append(area_nodes[np.argmin(area_dists.mean(axis=0))])
+
+
+# add geodesic distance between centroids into dataframe
+
+df['GDIST (mm)'] = np.nan 
+
+for i in range(len(df)):
+
+    source = df.source.iloc[i]
+    target = df.target.iloc[i]
+
+    idx1 = np.where(df.source.unique() == source)[0][0]
+    idx2 = np.where(df.source.unique() == target)[0][0]
+    
+    df['GDIST (mm)'].iloc[i] = gdist_mat[centroids[idx1], centroids[idx2]]    
+    
+
+
+############################# saving data #####################################
+
+df = df[df.columns.values[[4,5,1,2,9,0,6,7,8,3]]]
+df.to_pickle('%s/df_region-pairs.pkl' % data_dir)
+
+np.save('%s/region_centroids.npy' % data_dir, np.array(centroids))
