@@ -73,7 +73,7 @@ def plot_yerkes(df, var, vmin=None, vmax=None, mask=None, cmap=None):
     yerkes_dir ='/nobackup/hunte1/sabine/data/macaque/Yerkes19'
 
     # macaque surface
-    f_surf = '%s/Donahue_et_al_2016_Journal_of_Neuroscience_W336/spec/MacaqueYerkes19.L.very_inflated.32k_fs_LR.surf.gii' % yerkes_dir
+    f_surf = '%s/Donahue_et_al_2016_Journal_of_Neuroscience_W336/spec/MacaqueYerkes19.L.inflated.32k_fs_LR.surf.gii' % yerkes_dir
     coords = nib.load(f_surf).darrays[0].data
     faces = nib.load(f_surf).darrays[1].data
     surf = tuple((coords, faces))
