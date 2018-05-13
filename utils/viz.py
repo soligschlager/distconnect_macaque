@@ -1,4 +1,7 @@
-def plot_inj_yerkes(df, var, vmin=None, vmax=None):
+def plot_inj_yerkes(df, var, vmin=None, vmax=None, cmap='inferno', 
+                    surftype='inflated', views=[(180,0)],
+                    labels=None, label_cpal=None,
+                    f_save=None):
     
     import pandas as pd, numpy as np, nibabel as nib
     import seaborn as sns
@@ -11,7 +14,7 @@ def plot_inj_yerkes(df, var, vmin=None, vmax=None):
     yerkes_dir ='/nobackup/hunte1/sabine/data/macaque/Yerkes19'
 
     # macaque surface
-    f_surf = '%s/Donahue_et_al_2016_Journal_of_Neuroscience_W336/spec/MacaqueYerkes19.L.very_inflated.32k_fs_LR.surf.gii' % yerkes_dir
+    f_surf = '%s/Donahue_et_al_2016_Journal_of_Neuroscience_W336/spec/MacaqueYerkes19.L.%s.32k_fs_LR.surf.gii' % (yerkes_dir, surftype)
     coords = nib.load(f_surf).darrays[0].data
     faces = nib.load(f_surf).darrays[1].data
     surf = tuple((coords, faces))
@@ -48,14 +51,19 @@ def plot_inj_yerkes(df, var, vmin=None, vmax=None):
         except:
             None
 
-    for azim in [180,0]:
+    for n, view in enumerate(views):
         img = plot.plot_surf_stat_map(coords, faces, data, 
                                       bg_map=sulc, bg_on_stat=True,
                                       mask=np.where(data>0)[0], 
-                                      azim=azim,
-                                      cmap='inferno',
-                                      vmin=vmin, vmax=vmax)
+                                      azim=view[0],
+                                      elev=view[1],
+                                      cmap=cmap,
+                                      vmin=vmin, vmax=vmax,
+                                      labels=labels,
+                                      label_cpal=label_cpal)
         plt.show()
+        if f_save is not None:
+            img.savefig(f_save + '_%s' % (n), dpi=300)
 
 
 
