@@ -11,22 +11,22 @@ def plot_inj_yerkes(df, var, vmin=None, vmax=None, cmap='inferno',
     sns.set_style('white')
     #sns.set_context('notebook')
     
-    yerkes_dir ='/nobackup/hunte1/sabine/data/macaque/Yerkes19'
+    yerkes_dir ='/Users/sabine/data/Yerkes19'
 
     # macaque surface
-    f_surf = '%s/Donahue_et_al_2016_Journal_of_Neuroscience_W336/spec/MacaqueYerkes19.L.%s.32k_fs_LR.surf.gii' % (yerkes_dir, surftype)
+    f_surf = '%s/MacaqueYerkes19.L.%s.32k_fs_LR.surf.gii' % (yerkes_dir, surftype)
     coords = nib.load(f_surf).darrays[0].data
     faces = nib.load(f_surf).darrays[1].data
     surf = tuple((coords, faces))
-    f_sulc = '%s/Donahue_et_al_2016_Journal_of_Neuroscience_W336/spec/MacaqueYerkes19.sulc.32k_fs_LR.dscalar.nii' % yerkes_dir
+    f_sulc = '%s/MacaqueYerkes19.sulc.32k_fs_LR.dscalar.nii' % yerkes_dir
     sulc = nib.load(f_sulc).get_data().squeeze()[:32492]
 
     # labels
     mwall = np.load('%s/medial_wall.lh.label.npy' % yerkes_dir)
     cort = np.array([node for node in range(32492) if node not in mwall])
-    areas_f = '%s/Donahue_et_al_2016_Journal_of_Neuroscience_W336/data/MarkovCC12_M132_91-area.32k_fs_LR.dlabel.nii' % yerkes_dir
+    areas_f = '%s/MarkovCC12_M132_91-area.32k_fs_LR.dlabel.nii' % yerkes_dir
     areas_annot = nib.load(areas_f).get_data().squeeze()[:28261]
-    areas_key = np.load('/nobackup/hunte1/sabine/data/macaque/Yerkes19/M132_key.npy')
+    areas_key = np.load('%s/M132_key.npy' % yerkes_dir)
     
     data = np.zeros((32492))
 
@@ -78,22 +78,22 @@ def plot_yerkes(df, var, vmin=None, vmax=None, mask=None, cmap=None):
     sns.set_style('white')
     #sns.set_context('notebook')
     
-    yerkes_dir ='/nobackup/hunte1/sabine/data/macaque/Yerkes19'
+    yerkes_dir ='/Users/sabine/data/Yerkes19'
 
     # macaque surface
-    f_surf = '%s/Donahue_et_al_2016_Journal_of_Neuroscience_W336/spec/MacaqueYerkes19.L.inflated.32k_fs_LR.surf.gii' % yerkes_dir
+    f_surf = '%s/MacaqueYerkes19.L.inflated.32k_fs_LR.surf.gii' % yerkes_dir
     coords = nib.load(f_surf).darrays[0].data
     faces = nib.load(f_surf).darrays[1].data
     surf = tuple((coords, faces))
-    f_sulc = '%s/Donahue_et_al_2016_Journal_of_Neuroscience_W336/spec/MacaqueYerkes19.sulc.32k_fs_LR.dscalar.nii' % yerkes_dir
+    f_sulc = '%s/MacaqueYerkes19.sulc.32k_fs_LR.dscalar.nii' % yerkes_dir
     sulc = nib.load(f_sulc).get_data().squeeze()[:32492]
 
     # labels
     mwall = np.load('%s/medial_wall.lh.label.npy' % yerkes_dir)
     cort = np.array([node for node in range(32492) if node not in mwall])
-    areas_f = '%s/Donahue_et_al_2016_Journal_of_Neuroscience_W336/data/MarkovCC12_M132_91-area.32k_fs_LR.dlabel.nii' % yerkes_dir
+    areas_f = '%s/MarkovCC12_M132_91-area.32k_fs_LR.dlabel.nii' % yerkes_dir
     areas_annot = nib.load(areas_f).get_data().squeeze()[:28261]
-    areas_key = np.load('/nobackup/hunte1/sabine/data/macaque/Yerkes19/M132_key.npy')
+    areas_key = np.load('%s/M132_key.npy' % yerkes_dir)
     
     data = np.zeros((32492))
     
